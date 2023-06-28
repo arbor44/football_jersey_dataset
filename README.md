@@ -17,8 +17,7 @@ To scrap images from https://www.footballkitarchive.com run:
 ```angular2html
 python data_scraping.py images_dir --n_jobs desired_num_of_jobs
 ```
-`images_dir` -- the folder where the images will be stored. The structure of the folder
-wil be will be as follows:
+`images_dir` -- the folder where the images will be stored. The structure of the folder will be as follows:
 
 ```angular2html
 images_dir
