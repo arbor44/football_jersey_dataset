@@ -9,9 +9,9 @@ from typing import Union
 def load_json(path: Union[str, pathlib.Path]):
     """
     Loads JSON file
-    ----------------------------------------------------------------------------------------------
+
     :param path: path to desired file
-    ----------------------------------------------------------------------------------------------
+
     :returns: content of JSON file
     """
     with open(str(path), "r") as f:
@@ -21,9 +21,9 @@ def load_json(path: Union[str, pathlib.Path]):
 def save_json(obj, path: Union[str, pathlib.Path]) -> None:
     """
     Save obj as JSON filae
-    ----------------------------------------------------------------------------------------------
+
     :param obj: object to save
-    ----------------------------------------------------------------------------------------------
+
     :param path: path to save
     """
     with open(str(path), 'w') as f:
@@ -33,10 +33,10 @@ def save_json(obj, path: Union[str, pathlib.Path]) -> None:
 def configure_logger(logger: logging.Logger, level: int):
     """
     Configure logger
-    ----------------------------------------------------------------------------------------------
+
     :param logger: logger to configure
     :param level: logger info level
-    ----------------------------------------------------------------------------------------------
+
     :return: configured logger
     """
     formatter = logging.Formatter(
