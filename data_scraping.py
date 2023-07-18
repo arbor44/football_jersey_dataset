@@ -10,6 +10,7 @@ import logging
 
 import bs4
 import requests
+import shutil
 import xmltodict
 
 from joblib import Parallel, delayed
@@ -17,7 +18,7 @@ from pathlib import Path
 from tqdm import tqdm
 from typing import List, Tuple, Union
 
-from dataprep.utils import save_json, configure_logger
+from dataprep.utils import save_json, configure_logger, load_json
 
 
 def image_loader(image_url: str, num_elements: int = 1000) -> Tuple[Union[np.ndarray, None], dict]:
@@ -95,7 +96,7 @@ def get_and_save_all_images_by_league(
     logger.info(f"Save images for {league_name} league")
 
     path_to_league = path_to_images / league_name
-    path_to_league.mkdir(exist_ok=True)
+    path_to_league.mkdir(exist_ok=True, parents=True)
 
     league_page = requests.get(url + f"/{league_name}-kits/")
     league_soup = bs4.BeautifulSoup(league_page.content, "html.parser")
@@ -139,18 +140,77 @@ logger = configure_logger(logging.getLogger(__name__), 2)
 
 # ----------------------------------------------------------------------------
 
-@click.command()
-@click.argument("path_to_images")
-@click.option("--n_jobs", default=20, type=int, help="the number of frames per chunk")
-def download_images(path_to_images: str, n_jobs: int):
-    path_to_images = Path(path_to_images)
+@click.group()
+def main():
+    """
+    Tools set to download images from https://www.footballkitarchive.com
+
+    Example:
+
+    \b
+    # Download images to folder ~/all_jerseys_images_folder
+    python data_scraping.py download-images ~/all_jerseys_images_folder
+
+    \b
+    # Distinct bad quality and good quality images from ~/all_jerseys_images_folder: good quality images from file
+    # ./img_info/relevant_images.json will be saved in ~/jerseys_images_folder; images with bad quality will stay
+    # in ~/all_jerseys_images_folder
+    python data_scraping.py filter-images ~/all_jerseys_images_folder ~/jerseys_images_folder ./images_info/relevant_images.json
+    """
+    pass
+
+
+@main.command()
+@click.argument("path_to_images_folder")
+@click.option("--n_jobs", default=20, type=int, help="the number of jobs to use in parallel")
+def download_images(path_to_images_folder: str, n_jobs: int):
+    """
+    Download jersey's images from https://www.footballkitarchive.com to path_to_images_folder;
+    images will be saved in the following way: path_to_images_folder/league_name/image_name.jpg
+
+    :param path_to_images_folder: folder to save images
+    :param n_jobs: number of jobs to use in parallel
+    """
+    path_to_images_folder = Path(path_to_images_folder)
 
     kits = []
     for league in leagues:
-        kits.extend(get_and_save_all_images_by_league(league, path_to_images, n_jobs, logger))
+        kits.extend(get_and_save_all_images_by_league(league, path_to_images_folder, n_jobs, logger))
 
-    save_json(path_to_images / "saved_images.json")
+    save_json(kits, path_to_images_folder / "saved_images.json")
+
+
+@main.command()
+@click.argument("path_to_not_filtered_images")
+@click.argument("path_to_filtered_images")
+@click.argument("path_to_json_with_filtered_images")
+def filter_images(
+        path_to_not_filtered_images: str, path_to_filtered_images: str, path_to_json_with_filtered_images: str):
+    """
+    Save only images that will be used in GANs training in folder path_to_filtered_images and remove them from
+    path_to_not_filtered_images
+
+    :param path_to_not_filtered_images: path to folder with  all images scrapped from https://www.footballkitarchive.com
+                                        (the path_to_images_folder in download_images function)
+    :param path_to_filtered_images: path to folder where only relevant images will be saved
+    :param path_to_json_with_filtered_images: path to json file with relevant images
+
+    """
+
+    not_filtered, filtered = Path(path_to_not_filtered_images), Path(path_to_filtered_images)
+    relevant_images = load_json(path_to_json_with_filtered_images)
+
+    for img_name in relevant_images:
+        if not (not_filtered / img_name).exists():
+            logger.info(f"The image {img_name} was not downloaded from https://www.footballkitarchive.com. "
+                        f"It can be because of some changes on https://www.footballkitarchive.com.")
+            continue
+
+        (filtered / img_name).parents[0].mkdir(exist_ok=True, parents=True)
+        shutil.move(not_filtered / img_name, filtered / img_name)
+
+# ----------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
-    download_images()
+    main()
